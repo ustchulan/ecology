@@ -12,6 +12,7 @@ str(doubs)
 class(doubs) 
 
 #the second answer
+env <-doubs$env
 env_df <- tibble::rownames_to_column(env, var = "site")   #Turn the row name into a column named "site"
 env_tb <- as_tibble(env_df)                               #Convert to tibble and rename
 class(env_tb)                                             #checking the class of the data.
