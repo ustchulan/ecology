@@ -1,0 +1,126 @@
+#answer 1
+rm(list = ls())
+# 加载库
+library(tidyverse)
+library(ade4)
+library(car)
+library('caret')
+
+data(doubs)
+
+fish <- doubs$fish %>%
+  mutate(fish_total = rowSums(.))
+env <- doubs$env
+
+env_fish <- cbind(env, fish) %>%
+  dplyr::select(1:11,39) %>%
+  subset(fish_total !=0)
+
+
+# 按场地(summarize fish abundance data by sites)汇总鱼类丰度数据
+total_fish = rowSums(doubs$fish) 
+#fish_summary <- fish %>%
+  #group_by(site) %>%
+  #summarize(total_fish = sum(abundance))
+# 合并env和fish数据
+env_fish = cbind(doubs$env, total_fish) 
+#env_fish <- left_join(env, fish_summary, by = "site")
+
+#answer 2
+# 使用scatterplot可视化数据
+library(ggplot2)
+scatterplot(env_fish, x = "pH", y = "total_fish")
+scatterplot(env_fish, x = "nitrogen", y = "total_fish")
+scatterplot(env_fish, x = "oxygen", y = "total_fish")
+scatterplot(env_fish, x = "slope", y = "total_fish")
+scatterplot(env_fish, x = "flowrate", y = "total_fish")
+scatterplot(env_fish, x = "distsour", y = "total_fish")
+
+#annswer 3
+# 找出没有鱼的站点
+no_fish_sites <- env_fish$site[env_fish$total_fish == 0]
+
+# 删除没有鱼的站点
+if (length(no_fish_sites) > 0) {
+  env_fish <- env_fish[!env_fish$site %in% no_fish_sites, ]
+}
+
+# 删除包含空值或异常值的行
+env_fish <- env_fish[complete.cases(env_fish), ]
+env_fish <- env_fish[apply(env_fish, 1, function(x) all(abs(scale(x)) < 3)), ]
+
+#answer 4
+# 排除零方差变量和异常值
+library(caret)
+
+# 找出零方差变量
+zero_var <- nearZeroVar(env_fish[,-1])
+
+# 找出异常值
+outliers <- apply(env_fish[,-1], 1, function(x) any(abs(scale(x)) > 3))
+
+# 将零方差变量和异常值从数据集中删除
+env_fish <- env_fish[, !colnames(env_fish) %in% zero_var]
+env_fish <- env_fish[!outliers, ]
+
+#answer 5
+# 检测多重共线性
+cor_mat <- cor(env_fish[,-1])
+highly_correlated <- findCorrelation(cor_mat, cutoff = 0.75)
+
+# 删除高度相关的特征
+env_fish <- env_fish[, -highly_correlated]
+
+#第二节
+#answer 6
+# 分割数据为训练集和测试集
+library(caret)
+
+set.seed(123) # 设置随机种子，以便结果可重复
+trainIndex <- createDataPartition(env_fish$total_fish, p = 0.8, list = FALSE)
+train <- env_fish[trainIndex, ]
+test <- env_fish[-trainIndex, ]
+
+# 可视化训练集的特征和目标
+library(ggplot2)
+
+# 特征
+train_features <- train[, -1]
+train_features_melted <- reshape2::melt(train_features)
+
+ggplot(train_features_melted, aes(x = variable, y = value)) +
+  geom_boxplot() +
+  xlab("Features") +
+  ylab("Value") +
+  ggtitle("Training Set Features")
+
+# 目标
+ggplot(train, aes(x = total_fish)) +
+  geom_histogram() +
+  xlab("Total Fish Abundance") +
+  ylab("Count") +
+  ggtitle("Training Set Total Fish Abundance")
+
+#answer 7
+# 创建基线模型
+library(rpart)
+
+set.seed(123) # 设置随机种子，以便结果可重复
+
+# 使用 rpart 包中的 rpart() 函数创建基于树的模型
+baseline_model <- rpart(total_fish ~ ., data = train)
+
+# 评估基线模型
+library(caret)
+
+# 使用训练集预测并计算误差
+train_predictions <- predict(baseline_model, newdata = train)
+train_rmse <- caret::RMSE(train_predictions, train$total_fish)
+
+# 使用测试集预测并计算误差
+test_predictions <- predict(baseline_model, newdata = test)
+test_rmse <- caret::RMSE(test_predictions, test$total_fish)
+
+# 打印训练和测试集上的 RMSE
+cat("Training RMSE:", train_rmse, "\n")
+cat("Test RMSE:", test_rmse, "\n")
