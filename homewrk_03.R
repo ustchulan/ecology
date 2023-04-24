@@ -71,4 +71,3 @@ fish.hel <- decostand(fish, "hellinger")
 fish.rda <- rda(fish.hel ~ ., env)
 summary(fish.rda)
 plot(fish.rda)
-
