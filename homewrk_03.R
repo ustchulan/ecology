@@ -1,16 +1,8 @@
 rm(list=ls())  #clean space
-rm(species)
 
-install.packages("vegan")
-install.packages("gclus")
-install.packages("FD")
-install.packages("factoextra")
+library(ade4)
 library(tidyverse)
-library(caret)
-library(dplyr)
-library(vegan)
-library(gclus)
-library(cluster)
+data(doubs)
 
 #task1
 #Read in the doubs into your R and delete the site 8 which has no fishes. 
@@ -34,58 +26,49 @@ spe[which.max(species),]
 
 
 #task2
+# write code for clusters and answer: In terms of the fish community composition, which groups of species can you identify? Which groups of species are related to these groups of sites?
+# Transpose matrix of species abundances
 
+# Cluster analysis of environmental variables based on loci
+env.z.hel<-decostand(env,method="hellinger") 
+env.z.dhel<- vegdist(env.z.hel,method = "euclidean") 
+env.z.dhel.complete<-hclust(env.z.dhel,method = "complete")  
+plot(env.z.dhel.complete,hang=-1) 
 
-#Select a suitable association measure of species
-spe.t<-t(spe)
-spe.t.chi<-decostand(spe.t,"chi.square")
-spe.t.D<-dist(spe.t.chi)
-#Calculate ward & single minimum variance clustering
-spe.t.chi.single<-hclust(spe.t.D,method = "single")
-plot(spe.t.chi.single)
-spe.t.chi.ward <- hclust(spe.t.D, method="ward.D2")
-plot(spe.t.chi.ward)
-source("coldiss.R")
-coldiss(spe.t.D,byrank=FALSE,diag=FALSE)
-#Q mode aggregated the locations
-spe.norm<-decostand(spe,"normalize")
-#Calculate the string distance matrix between quadrat
-spe.ch<-vegdist(spe.norm,"euc")
-#Calculate the Chord distance clustering
-spe.dc<- vegdist(spe.norm)
-spe.hel<-decostand(spe,"hel")
-#Hellinger matrix
-spe.dh<-vegdist(spe.hel)
-#Calculate single & ward minimum variance clustering
-spe.ch.single<-hclust(spe.ch,method = "single")
-plot(spe.ch.single)
-spe.ch.ward <- hclust(spe.ch, method="ward.D2")
-plot(spe.ch.ward)
+# Cluster analysis of fish species based on loci
+fish.hel<-decostand(fish,method="hellinger") 
+fish.dhel<- vegdist(fish.hel,method = "euclidean")
+fish.dhe1.complete<-hclust(fish.dhel,method = "complete") 
+plot(fish.dhe1.complete,hang=-1) 
+
+#Cluster analysis of different fish species
+fish.t<-t(fish) 
+fish.chi.t<-decostand(fish.t,method="chi.square") 
+fish.chi.t.d<- vegdist(fish.chi.t,method = "euclidean") 
+fish.chi.t.d.complete <- hclust(fish.chi.t.d,method = "complete") 
+plot(fish.chi.t.d.complete,hang=-1) 
 
 
 #task3
+# Do RDA analysis, and then write code and answer: 
+# Which environmental variables cause a community to vary across a landscape?
 
+#means cluster analysis of site
+fish.de <- vegdist(scale(fish), "euc")
+fish.kmeans <- kmeans(fish.de, centers = 4, nstart = 100)
+fish.kmeans.g <-fish.kmeans$cluster
+env.de <- vegdist(scale(env), "euc")
+env.kmeans <- kmeans(env.de, centers = 4, nstart = 100)
+env.kmeans.g <- env.kmeans$cluster
+fviz_cluster(fish.kmeans,data = fish)
+fviz_cluster(env.kmeans,data = env)
+table(fish.kmeans.g, env.kmeans.g)
+fisher.test(table(fish.kmeans.g, env.kmeans.g))
 
-#choose the right analytic method
-print(decorana(t(spe)))
-#Axis lengths belongs to 3.0~4.0,so choose RDA analysis
-RDA<-rda(spe,env,scale=T)
+#Do RDA analysis, and then write code and answer: 
+#Which environmental variables cause a community to vary across a landscape?
+fish.hel <- decostand(fish, "hellinger")  
+fish.rda <- rda(fish.hel ~ ., env)
+summary(fish.rda)
+plot(fish.rda)
 
-#extract statistics
-spe_rda<-data.frame(RDA$CCA$u[,1:2],rownames(env))
-colnames(spe_rda)=c("RDA1","RDA2","samples")
-score
-spe_rda_score<-data.frame(RDA$CCA$v[,1:2])
-#Calculate axle label data
-RDA1=round(RDA$CCA$eig[1]/sum(RDA$CCA$eig)*100,2)
-RDA2=round(RDA$CCA$eig[2]/sum(RDA$CCA$eig)*100,2)
-plot(RDA)
-
-# Hellinger pre-transformation
-spe_hel <- decostand(spe, method = 'hellinger')
-
-#use all env data
-rda_tb <- rda(spe_hel~., env, scale = FALSE)
-
-#drawing
-plot(rda_tb)#finish
