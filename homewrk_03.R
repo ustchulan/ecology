@@ -2,7 +2,10 @@ rm(list=ls())  #clean space
 
 library(ade4)
 library(tidyverse)
+library("vegan")
+library("factoextra")
 data(doubs)
+
 
 #task1
 #Read in the doubs into your R and delete the site 8 which has no fishes. 
@@ -30,6 +33,7 @@ spe[which.max(species),]
 # Transpose matrix of species abundances
 
 # Cluster analysis of environmental variables based on loci
+env <-doubs$env
 env.z.hel<-decostand(env,method="hellinger") 
 env.z.dhel<- vegdist(env.z.hel,method = "euclidean") 
 env.z.dhel.complete<-hclust(env.z.dhel,method = "complete")  
@@ -60,8 +64,6 @@ fish.kmeans.g <-fish.kmeans$cluster
 env.de <- vegdist(scale(env), "euc")
 env.kmeans <- kmeans(env.de, centers = 4, nstart = 100)
 env.kmeans.g <- env.kmeans$cluster
-fviz_cluster(fish.kmeans,data = fish)
-fviz_cluster(env.kmeans,data = env)
 table(fish.kmeans.g, env.kmeans.g)
 fisher.test(table(fish.kmeans.g, env.kmeans.g))
 
